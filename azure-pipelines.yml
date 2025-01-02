@@ -63,8 +63,8 @@ stages:
         scannerMode: 'other'
         extraProperties: |
           # Additional properties that will be passed to the scanner
-          sonar.projectKey='x00078774'
-          sonar.projectName='X00078774'
+          sonar.projectKey='X00078774_DevOps_CA3'
+          sonar.projectName='DevOps_CA3'
           sonar.java.binaries=$(System.DefaultWorkingDirectory)/**/build/classes
           sonar.coverage.jacoco.xmlReportPaths=$(System.DefaultWorkingDirectory)/**/build/reports/jacoco/test/jacocoTestReport.xml
           sonar.junit.reportPaths=$(System.DefaultWorkingDirectory)/**/build/test-results/test
@@ -78,7 +78,7 @@ stages:
         javaHomeOption: 'JDKVersion'
         jdkVersionOption: '$(javaVersion)'
         jdkArchitectureOption: 'x64'
-        tasks: ''
+        tasks: 'sonar'
 
     - task: SonarCloudPublish@3
       inputs:
