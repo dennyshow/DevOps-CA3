@@ -49,7 +49,6 @@ stages:
         pathToSources: '$(System.DefaultWorkingDirectory)/src/main/java/'
         failIfCoverageEmpty: true
 
-
 - stage: CodeAnalysis
   jobs:
   - job: SonarCloudAnalysis
@@ -64,6 +63,16 @@ stages:
         downloadType: 'single'
         artifactName: 'build-outputs'
         downloadPath: '$(System.DefaultWorkingDirectory)'
+        
+    - script: |
+              JAR_FILE=$(find $(System.ArtifactsDirectory) -name *SNAPSHOT.jar)
+              if [ -z "$JAR_FILE" ]; then
+                echo "No JAR file found"
+                exit 1
+              fi
+              echo "Found JAR file: $JAR_FILE"
+              java -jar $JAR_FILE &
+            displayName: 'Deploy Spring Boot app'
 
     - task: SonarCloudPrepare@3
       inputs:
