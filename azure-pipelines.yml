@@ -1,0 +1,74 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  javaVersion: '17'
+
+stages:
+- stage: Build
+  jobs:
+  - job: BuildJob
+    steps:
+    - task: JavaToolInstaller@0
+      inputs:
+        versionSpec: '$(javaVersion)'
+        jdkArchitectureOption: 'x64'
+        jdkSourceOption: 'PreInstalled'
+    
+    - task: Gradle@2
+      inputs:
+        workingDirectory: ''
+        gradleWrapperFile: 'gradlew'
+        gradleOptions: '-Xmx3072m'
+        javaHomeOption: 'JDKVersion'
+        jdkVersionOption: '$(javaVersion)'
+        jdkArchitectureOption: 'x64'
+        publishJUnitResults: true
+        testResultsFiles: '**/TEST-*.xml'
+        tasks: 'bootJar'
+
+    - task: CopyFiles@2
+      inputs:
+        contents: '**/build/libs/*SNAPSHOT.jar'
+        targetFolder: '$(build.artifactStagingDirectory)'
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: 'drop'
+
+- stage: Deploy
+  jobs:
+  - deployment: DeployJob
+    pool:
+      vmImage: 'ubuntu-latest'
+    environment: 'Dev'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: JavaToolInstaller@0
+            inputs:
+              versionSpec: '$(javaVersion)'
+              jdkArchitectureOption: 'x64'
+              jdkSourceOption: 'PreInstalled'
+          
+          - task: DownloadBuildArtifacts@0
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: 'drop'
+              downloadPath: '$(System.ArtifactsDirectory)'
+          
+          - script: |
+              JAR_FILE=$(find $(System.ArtifactsDirectory) -name *SNAPSHOT.jar)
+              if [ -z "$JAR_FILE" ]; then
+                echo "No JAR file found"
+                exit 1
+              fi
+              echo "Found JAR file: $JAR_FILE"
+              java -jar $JAR_FILE &
+            displayName: 'Deploy Spring Boot app'
