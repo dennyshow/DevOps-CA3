@@ -54,10 +54,3 @@ jacocoTestReport {
 }
 
 // Optional: Add SonarQube properties
-sonar {
-  properties {
-    property "sonar.projectKey", "X00078774_DevOps_CA3"
-    property "sonar.organization", "x00078774"
-    property "sonar.host.url", "https://sonarcloud.io"
-  }
-}
