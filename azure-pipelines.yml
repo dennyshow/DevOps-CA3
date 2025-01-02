@@ -78,7 +78,7 @@ stages:
         javaHomeOption: 'JDKVersion'
         jdkVersionOption: '$(javaVersion)'
         jdkArchitectureOption: 'x64'
-        tasks: 'sonar'
+        tasks: ''
 
     - task: SonarCloudPublish@3
       inputs:
