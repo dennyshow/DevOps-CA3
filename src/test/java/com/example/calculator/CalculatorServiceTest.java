@@ -1,11 +1,21 @@
 package com.example.calculator;
 
+import com.example.calculator.service.CalculatorService;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.mockito.InjectMocks;
+import org.mockito.MockitoAnnotations;
 
 public class CalculatorServiceTest {
 
-    private final CalculatorService calculatorService = new CalculatorService();
+    @InjectMocks
+    private CalculatorService calculatorService;
+
+    @BeforeEach
+    void setUp(){
+        MockitoAnnotations.openMocks(this);
+    }
 
     @Test
     void testAddition() {
@@ -25,6 +35,12 @@ public class CalculatorServiceTest {
     @Test
     void testDivision() {
         assertEquals(2, calculatorService.calculate(6, 3, "/"));
+    }
+
+    @Test
+    void testDivisionByZero() {
+        Exception exception = assertThrows(IllegalArgumentException.class, () -> calculatorService.calculate(1, 0, "/"));
+        assertEquals("Division by zero is not allowed.", exception.getMessage());
     }
 
     @Test
