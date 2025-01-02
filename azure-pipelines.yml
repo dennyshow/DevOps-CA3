@@ -49,38 +49,6 @@ stages:
         pathToSources: '$(System.DefaultWorkingDirectory)/src/main/java/'
         failIfCoverageEmpty: true
 
-- stage: Deploy
-  jobs:
-  - deployment: DeployJob
-    pool:
-      vmImage: 'ubuntu-latest'
-    environment: 'Dev'
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - task: JavaToolInstaller@0
-            inputs:
-              versionSpec: '$(javaVersion)'
-              jdkArchitectureOption: 'x64'
-              jdkSourceOption: 'PreInstalled'
-          
-          - task: DownloadBuildArtifacts@0
-            inputs:
-              buildType: 'current'
-              downloadType: 'single'
-              artifactName: 'drop'
-              downloadPath: '$(System.ArtifactsDirectory)'
-          
-          - script: |
-              JAR_FILE=$(find $(System.ArtifactsDirectory) -name *SNAPSHOT.jar)
-              if [ -z "$JAR_FILE" ]; then
-                echo "No JAR file found"
-                exit 1
-              fi
-              echo "Found JAR file: $JAR_FILE"
-              java -jar $JAR_FILE &
-            displayName: 'Deploy Spring Boot app'
 
 - stage: CodeAnalysis
   jobs:
@@ -124,3 +92,36 @@ stages:
     - task: SonarCloudPublish@3
       inputs:
         pollingTimeoutSec: '300'
+
+- stage: Deploy
+  jobs:
+  - deployment: DeployJob
+    pool:
+      vmImage: 'ubuntu-latest'
+    environment: 'Dev'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: JavaToolInstaller@0
+            inputs:
+              versionSpec: '$(javaVersion)'
+              jdkArchitectureOption: 'x64'
+              jdkSourceOption: 'PreInstalled'
+          
+          - task: DownloadBuildArtifacts@0
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: 'drop'
+              downloadPath: '$(System.ArtifactsDirectory)'
+          
+          - script: |
+              JAR_FILE=$(find $(System.ArtifactsDirectory) -name *SNAPSHOT.jar)
+              if [ -z "$JAR_FILE" ]; then
+                echo "No JAR file found"
+                exit 1
+              fi
+              echo "Found JAR file: $JAR_FILE"
+              java -jar $JAR_FILE &
+            displayName: 'Deploy Spring Boot app'
