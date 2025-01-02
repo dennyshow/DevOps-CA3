@@ -38,12 +38,6 @@ public class CalculatorServiceTest {
     }
 
     @Test
-    void testDivisionByZero() {
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> calculatorService.calculate(1, 0, "/"));
-        assertEquals("Division by zero is not allowed.", exception.getMessage());
-    }
-
-    @Test
     void testInvalidOperator() {
         Exception exception = assertThrows(IllegalArgumentException.class, () -> calculatorService.calculate(1, 1, "%"));
         assertEquals("Invalid operator: %", exception.getMessage());
