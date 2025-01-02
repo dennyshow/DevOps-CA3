@@ -28,17 +28,26 @@ stages:
         jdkArchitectureOption: 'x64'
         publishJUnitResults: true
         testResultsFiles: '**/TEST-*.xml'
-        tasks: 'bootJar'
+        tasks: 'clean build test jacocoTestReport'
 
     - task: CopyFiles@2
       inputs:
-        contents: '**/build/libs/*SNAPSHOT.jar'
-        targetFolder: '$(build.artifactStagingDirectory)'
+        contents: |
+          **/build/**
+          **/build/reports/jacoco/**
+        targetFolder: '$(Build.ArtifactStagingDirectory)'
 
     - task: PublishBuildArtifacts@1
       inputs:
         pathToPublish: '$(Build.ArtifactStagingDirectory)'
         artifactName: 'drop'
+
+    # Publish code coverage results
+    - task: PublishCodeCoverageResults@2
+      inputs:
+        summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/build/reports/jacoco/test/jacocoTestReport.xml'
+        pathToSources: '$(System.DefaultWorkingDirectory)/src/main/java/'
+        failIfCoverageEmpty: true
 
 - stage: Deploy
   jobs:
@@ -72,3 +81,46 @@ stages:
               echo "Found JAR file: $JAR_FILE"
               java -jar $JAR_FILE &
             displayName: 'Deploy Spring Boot app'
+
+- stage: CodeAnalysis
+  jobs:
+  - job: SonarCloudAnalysis
+    steps:
+    - checkout: self
+      fetchDepth: 0
+
+    # Download build artifacts for analysis
+    - task: DownloadBuildArtifacts@0
+      inputs:
+        buildType: 'current'
+        downloadType: 'single'
+        artifactName: 'build-outputs'
+        downloadPath: '$(System.DefaultWorkingDirectory)'
+
+    - task: SonarCloudPrepare@3
+      inputs:
+        SonarCloud: 'SonarConnection'
+        organization: 'x00078774'
+        scannerMode: 'other'
+        extraProperties: |
+          # Additional properties that will be passed to the scanner
+          sonar.projectKey='x00078774'
+          sonar.projectName='X00078774'
+          sonar.java.binaries=$(System.DefaultWorkingDirectory)/**/build/classes
+          sonar.coverage.jacoco.xmlReportPaths=$(System.DefaultWorkingDirectory)/**/build/reports/jacoco/test/jacocoTestReport.xml
+          sonar.junit.reportPaths=$(System.DefaultWorkingDirectory)/**/build/test-results/test
+          sonar.java.libraries=$(System.DefaultWorkingDirectory)/**/build/libs/*.jar
+
+    - task: Gradle@3
+      inputs:
+        workingDirectory: ''
+        gradleWrapperFile: 'gradlew'
+        gradleOptions: '-Xmx3072m'
+        javaHomeOption: 'JDKVersion'
+        jdkVersionOption: '$(javaVersion)'
+        jdkArchitectureOption: 'x64'
+        tasks: 'sonar'
+
+    - task: SonarCloudPublish@3
+      inputs:
+        pollingTimeoutSec: '300'
