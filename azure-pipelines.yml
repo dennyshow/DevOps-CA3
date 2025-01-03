@@ -49,6 +49,21 @@ stages:
         pathToSources: '$(System.DefaultWorkingDirectory)/src/main/java/'
         failIfCoverageEmpty: true
 
+- stage: CodeAnalysis
+  jobs:
+  - job: SonarCloudAnalysis
+    steps:
+    - checkout: self
+      fetchDepth: 0
+
+    # Download build artifacts for analysis
+    - task: DownloadBuildArtifacts@0
+      inputs:
+        buildType: 'current'
+        downloadType: 'single'
+        artifactName: 'build-outputs'
+        downloadPath: '$(System.DefaultWorkingDirectory)'
+
 
 - stage: Deploy
   jobs:
