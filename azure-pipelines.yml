@@ -42,20 +42,6 @@ stages:
         pathToPublish: '$(Build.ArtifactStagingDirectory)'
         artifactName: 'drop'
 
-    # Publish code coverage results
-    - task: PublishCodeCoverageResults@2
-      inputs:
-        summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/build/reports/jacoco/test/jacocoTestReport.xml'
-        pathToSources: '$(System.DefaultWorkingDirectory)/src/main/java/'
-        failIfCoverageEmpty: true
-
-- stage: CodeAnalysis
-  jobs:
-  - job: SonarCloudAnalysis
-    steps:
-    - checkout: self
-      fetchDepth: 0
-
     # Download build artifacts for analysis
     - task: DownloadBuildArtifacts@0
       inputs:
@@ -63,6 +49,13 @@ stages:
         downloadType: 'single'
         artifactName: 'build-outputs'
         downloadPath: '$(System.DefaultWorkingDirectory)'
+
+    # Publish code coverage results
+    - task: PublishCodeCoverageResults@2
+      inputs:
+        summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/build/reports/jacoco/test/jacocoTestReport.xml'
+        pathToSources: '$(System.DefaultWorkingDirectory)/src/main/java/'
+        failIfCoverageEmpty: true
 
 
 - stage: Deploy
