@@ -92,3 +92,25 @@ stages:
     - task: SonarCloudPublish@3
       inputs:
         pollingTimeoutSec: '300'
+
+# add security scanning
+- stage: SecurityScanning
+  displayName: 'Security Scanning'
+  jobs:
+  - job: SecurityCheck
+    steps:
+    # Download artifacts from previous build stage
+    - task: DownloadBuildArtifacts@0
+      inputs:
+        buildType: 'current'
+        downloadType: 'single'
+        artifactName: 'build-outputs'
+        downloadPath: '$(System.DefaultWorkingDirectory)'
+
+    # Run security scanning
+    - task: MicrosoftSecurityDevOps@1
+      inputs:
+        categories: 'sources'
+        break: false # Starting with false to avoid breaking builds
+        tools: 'credscan'    # Basic credential scanning
+        sourcePath: '$(System.DefaultWorkingDirectory)'
