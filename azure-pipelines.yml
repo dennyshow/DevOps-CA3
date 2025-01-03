@@ -49,40 +49,6 @@ stages:
         pathToSources: '$(System.DefaultWorkingDirectory)/src/main/java/'
         failIfCoverageEmpty: true
 
-- stage: CodeAnalysis
-  jobs:
-  - job: SonarCloudAnalysis
-    steps:
-    - checkout: self
-      fetchDepth: 0
-
-    - task: SonarCloudPrepare@3
-      inputs:
-        SonarCloud: 'SonarConnection'
-        organization: 'x00078774'
-        scannerMode: 'other'
-        extraProperties: |
-          # Additional properties that will be passed to the scanner
-          sonar.projectKey='X00078774_DevOps_CA3'
-          sonar.projectName='DevOps_CA3'
-          sonar.java.binaries=$(System.DefaultWorkingDirectory)/**/build/classes
-          sonar.coverage.jacoco.xmlReportPaths=$(System.DefaultWorkingDirectory)/**/build/reports/jacoco/test/jacocoTestReport.xml
-          sonar.junit.reportPaths=$(System.DefaultWorkingDirectory)/**/build/test-results/test
-          sonar.java.libraries=$(System.DefaultWorkingDirectory)/**/build/libs/*.jar
-
-    - task: Gradle@3
-      inputs:
-        workingDirectory: ''
-        gradleWrapperFile: 'gradlew'
-        gradleOptions: '-Xmx3072m'
-        javaHomeOption: 'JDKVersion'
-        jdkVersionOption: '$(javaVersion)'
-        jdkArchitectureOption: 'x64'
-        tasks: 'sonar'
-
-    - task: SonarCloudPublish@3
-      inputs:
-        pollingTimeoutSec: '300'
 
 - stage: Deploy
   jobs:
