@@ -42,20 +42,20 @@ stages:
         pathToPublish: '$(Build.ArtifactStagingDirectory)'
         artifactName: 'drop'
 
-    # Download build artifacts for analysis
-    - task: DownloadBuildArtifacts@0
-      inputs:
-        buildType: 'current'
-        downloadType: 'single'
-        artifactName: 'build-outputs'
-        downloadPath: '$(System.DefaultWorkingDirectory)'
-
     # Publish code coverage results
     - task: PublishCodeCoverageResults@2
       inputs:
         summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/build/reports/jacoco/test/jacocoTestReport.xml'
         pathToSources: '$(System.DefaultWorkingDirectory)/src/main/java/'
         failIfCoverageEmpty: true
+    
+     # Download build artifacts for analysis
+    - task: DownloadBuildArtifacts@0
+      inputs:
+        buildType: 'current'
+        downloadType: 'single'
+        artifactName: 'build-outputs'
+        downloadPath: '$(Build.ArtifactStagingDirectory)'
 
 
 - stage: Deploy
