@@ -50,14 +50,6 @@ stages:
         pathToSources: '$(System.DefaultWorkingDirectory)/src/main/java/'
         failIfCoverageEmpty: true
     
-    # Add performance test in build stage
-    - task: CopyFiles@2
-        displayName: 'Copy jmx files'
-      inputs:
-        sourceFolder: '$(Build.SourcesDirectory)'
-        contents: 'performance-tests/*.jmx'
-        targetFolder: '$(Build.ArtifactStagingDirectory)'
-
 - stage: CodeAnalysis
   jobs:
   - job: SonarCloudAnalysis
@@ -138,3 +130,111 @@ stages:
         failOnCVSS: '7'
         nvdApiKey: '2c3d82d7-c688-49e1-970b-254e2295ab36'
 
+- stage: Deploy
+  jobs:
+  - deployment: DeployJob
+    pool:
+      vmImage: 'ubuntu-latest'
+    environment: 'Test'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: JavaToolInstaller@0
+            inputs:
+              versionSpec: '$(javaVersion)'
+              jdkArchitectureOption: 'x64'
+              jdkSourceOption: 'PreInstalled'
+          
+          # Download application
+          - task: DownloadBuildArtifacts@0
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: 'build-outputs'
+              downloadPath: '$(System.ArtifactsDirectory)'
+          
+          # Setup and start service
+          - script: |
+              JAR_FILE="$(System.ArtifactsDirectory)/build-outputs/build/libs/securing-web-0.0.1-SNAPSHOT.jar"
+              if [ ! -f "$JAR_FILE" ]; then
+                echo "JAR file not found at: $JAR_FILE"
+                ls -R $(System.ArtifactsDirectory)
+                exit 1
+              fi
+              echo "Found JAR file: $JAR_FILE"
+              
+              # Find Java 17 path
+              JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))
+              echo "JAVA_HOME: $JAVA_HOME"
+              
+              # Copy JAR to a permanent location
+              sudo mkdir -p /opt/springapp
+              sudo cp "$JAR_FILE" /opt/springapp/app.jar
+              
+              # Create service file
+              sudo tee /etc/systemd/system/springapp.service << EOF
+              [Unit]
+              Description=Spring Boot Application
+              After=network.target
+              
+              [Service]
+              Type=simple
+              User=vsts
+              Environment="JAVA_HOME=$JAVA_HOME"
+              ExecStart=$JAVA_HOME/bin/java -jar -Dserver.address=0.0.0.0 /opt/springapp/app.jar
+              Restart=always
+              WorkingDirectory=/opt/springapp
+              
+              [Install]
+              WantedBy=multi-user.target
+              EOF
+              
+              # Start service
+              sudo systemctl daemon-reload
+              sudo systemctl enable springapp
+              sudo systemctl start springapp
+              
+              # Check status and logs
+              sleep 5
+              sudo systemctl status springapp
+              sudo journalctl -u springapp --no-pager -n 50
+            displayName: 'Deploy Spring Boot app as service'
+
+          # Install JMeter
+          - task: JMeterInstaller@0
+            inputs:
+              jmeterVersion: '5.6.3'
+    
+          # Create directories for results
+          - task: Bash@3
+            displayName: 'Create Results Directories'
+            inputs:
+              targetType: 'inline'
+              script: |
+                mkdir -p $(Build.ArtifactStagingDirectory)/jmeter/homepage-dashboard
+                mkdir -p $(Build.ArtifactStagingDirectory)/jmeter/calculate-dashboard
+
+          # Run Homepage Test
+          - task: CmdLine@2
+            displayName: 'Run Homepage Test'
+            inputs:
+              script: |
+                jmeter -n -t $(Pipeline.Workspace)/build-outputs/performance-tests/homepage-test.jmx \
+                      -l $(Build.ArtifactStagingDirectory)/jmeter/homepage-results.jtl \
+                      -e -o $(Build.ArtifactStagingDirectory)/jmeter/homepage-dashboard
+
+          # Run Login Test
+          - task: CmdLine@2
+            displayName: 'Run Calculate Test'
+            inputs:
+              script: |
+                jmeter -n -t $(Pipeline.Workspace)/build-outputs/performance-tests/calculate-test.jmx \
+                      -l $(Build.ArtifactStagingDirectory)/jmeter/calculate-results.jtl \
+                      -e -o $(Build.ArtifactStagingDirectory)/jmeter/calculate-dashboard
+    
+          # Publish Results
+          - task: PublishBuildArtifacts@1
+            inputs:
+              pathToPublish: '$(Build.ArtifactStagingDirectory)/jmeter'
+              artifactName: 'jmeter-results'
