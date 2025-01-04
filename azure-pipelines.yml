@@ -49,6 +49,14 @@ stages:
         summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/build/reports/jacoco/test/jacocoTestReport.xml'
         pathToSources: '$(System.DefaultWorkingDirectory)/src/main/java/'
         failIfCoverageEmpty: true
+    
+    # Add performance test in build stage
+    - task: CopyFiles@2
+        displayName: 'Copy jmx files'
+      inputs:
+        sourceFolder: '$(Build.SourcesDirectory)'
+        contents: 'performance-tests/*.jmx'
+        targetFolder: '$(Build.ArtifactStagingDirectory)'
 
 - stage: CodeAnalysis
   jobs:
@@ -128,4 +136,5 @@ stages:
         uploadReports: true
         uploadSARIFReport: true
         failOnCVSS: '7'
-        nvdApiKey: '2c3d82d7-c688-49e1-970b-254e2295ab36'  # Replace with your API key
+        nvdApiKey: '2c3d82d7-c688-49e1-970b-254e2295ab36'
+
