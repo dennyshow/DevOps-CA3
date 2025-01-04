@@ -220,7 +220,7 @@ stages:
             displayName: 'Run Homepage Test'
             inputs:
               script: |
-                jmeter -n -t $(Pipeline.Workspace)/build-outputs/performance-tests/performance-test.jmx \
+                jmeter -n -t $(Pipeline.Workspace)/build-outputs/performance-tests/performance-Test.jmx \
                       -l $(Build.ArtifactStagingDirectory)/jmeter/homepage-results.jtl \
                       -e -o $(Build.ArtifactStagingDirectory)/jmeter/homepage-dashboard
 
