@@ -157,7 +157,7 @@ stages:
           # Setup and start service
           - script: |
               JAR_FILE="$(System.ArtifactsDirectory) -name *SNAPSHOT.jar"
-              if [ ! -f "$JAR_FILE" ]; then
+              if [ -z "$JAR_FILE" ]; then
                 echo "JAR file not found at: $JAR_FILE"
                 ls -R $(System.ArtifactsDirectory)
                 exit 1
