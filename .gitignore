@@ -65,3 +65,15 @@ out/
 .classpath
 .project
 .settings/
+/bin/
+
+# Ignore Gradle GUI config
+gradle-app.setting
+
+# JMeter specific ignores (add these)
+**/*.jtl
+**/jmeter.log
+performance-tests/*.log
+performance-tests/results/
+# Keep JMeter test plans in git
+!**/*.jmx
