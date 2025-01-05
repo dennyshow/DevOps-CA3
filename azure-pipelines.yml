@@ -229,7 +229,7 @@ stages:
             displayName: 'Run Calculate Test'
             inputs:
               script: |
-                jmeter -n -t $(Pipeline.Workspace)/build-outputs/performance-tests/calculate-test.jmx \
+                jmeter -n -t $(Pipeline.Workspace)\build-outputs\performance-tests\calculate-test.jmx
                       -l $(Build.ArtifactStagingDirectory)/jmeter/calculate-results.jtl \
                       -e -o $(Build.ArtifactStagingDirectory)/jmeter/calculate-dashboard
     
