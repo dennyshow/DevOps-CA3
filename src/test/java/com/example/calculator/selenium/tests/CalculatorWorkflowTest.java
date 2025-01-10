@@ -3,8 +3,7 @@ package com.example.calculator.selenium.tests;
 import com.example.calculator.selenium.pages.CalculatorPage;
 import org.junit.jupiter.api.*;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.htmlunit.HtmlUnitDriver;
 
 import java.time.Duration;
 
@@ -16,13 +15,7 @@ public class CalculatorWorkflowTest {
 
     @BeforeEach
     public void setup() {
-        ChromeOptions options = new ChromeOptions();
-        options.addArguments("--headless"); // Run Chrome in headless mode
-        options.addArguments("--disable-gpu"); // Disable GPU acceleration
-        options.addArguments("--no-sandbox"); // Disable the sandbox for security
-        options.addArguments("--disable-dev-shm-usage"); // Overcome resource limitations
-
-        driver = new ChromeDriver();
+        driver = new HtmlUnitDriver();
         driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(10)); // Adjusted implicit wait
         calculatorPage = new CalculatorPage(driver);
         driver.get("http://localhost:8080"); // Navigate to the calculator app

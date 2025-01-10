@@ -156,3 +156,8 @@ stages:
         testResultsFiles: '**/TEST-*.xml'
         tasks: 'clean test'
       displayName: 'Run Tests'
+    - script: |
+      export CI=true
+      ./gradlew clean test
+    displayName: 'Run Tests'
+\end{code}
