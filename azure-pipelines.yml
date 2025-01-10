@@ -164,11 +164,11 @@ stages:
     # Step 4: Download ChromeDriver
     - task: Bash@3
       inputs:
-        	targetType: 'inline'
-          script: |
-              wget -O chromedriver.zip $(CHROME_DRIVER_URL)
-              unzip chromedriver.zip -d $(CHROME_DRIVER_PATH)
-              sudo mv $(CHROME_DRIVER_PATH)/chromedriver /usr/local/bin/
+        targetType: 'inline'
+        script: |
+          wget -O chromedriver.zip $(CHROME_DRIVER_URL)
+          unzip chromedriver.zip -d $(CHROME_DRIVER_PATH)
+          sudo mv $(CHROME_DRIVER_PATH)/chromedriver /usr/local/bin/
       displayName: 'Download and Setup ChromeDriver'
 
     # Step 5: Cache Gradle Dependencies
