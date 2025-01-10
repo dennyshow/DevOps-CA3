@@ -140,7 +140,7 @@ stages:
   - job: RunSeleniumTests
     displayName: 'Run Selenium Tests'
     pool:
-      vmImage: 'windows-latest'
+      vmImage: 'ubuntu-latest'
     steps:
     # Step 1: Checkout the repository
     - task: Checkout@1
@@ -166,9 +166,8 @@ stages:
       inputs:
         targetType: 'inline'
         script: |
-          wget -O chromedriver.zip $(CHROME_DRIVER_URL)
-          unzip chromedriver.zip -d $(CHROME_DRIVER_PATH)
-          sudo mv $(CHROME_DRIVER_PATH)/chromedriver /usr/local/bin/
+          wget -O chromedriver.zip https://chromedriver.storage.googleapis.com/$(CHROME_DRIVER_VERSION)/chromedriver_linux64.zip
+          unzip chromedriver.zip -d /usr/local/bin/
       displayName: 'Download and Setup ChromeDriver'
 
     # Step 5: Cache Gradle Dependencies
@@ -179,10 +178,11 @@ stages:
         restoreKeys: |
           gradle | "$(Agent.OS)"
 
-    # Step 6: Run Selenium Tests
+    # Step 6: Set Chrome Options in Tests
     - script: |
-        ./gradlew clean test
-      displayName: 'Run Selenium Tests'
+        echo "Applying Chrome headless settings in tests..."
+        ./gradlew clean test -Dchrome.options.args="--headless --disable-gpu --no-sandbox --disable-dev-shm-usage"
+      displayName: 'Run Selenium Tests with Headless Chrome'
 
     # Step 7: Publish Test Results
     - task: PublishTestResults@2
