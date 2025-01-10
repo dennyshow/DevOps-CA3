@@ -32,15 +32,23 @@ dependencies {
 
 	// Add JUnit dependencies if needed (though Spring Boot starter test should include these)
     testImplementation(platform('org.junit:junit-bom:5.11.3'))
-    testImplementation('org.junit.jupiter:junit-jupiter')
+    testImplementation('org.junit.jupiter:junit-jupiter:5.10.0')
     testRuntimeOnly('org.junit.platform:junit-platform-launcher')
+
+	// Add Selenium dependencies
+    testImplementation 'org.seleniumhq.selenium:selenium-java:4.27.0'
 }
+
 
 test {
 	useJUnitPlatform()
 	testLogging {
 		events "passed", "skipped", "failed"
 		showStandardStreams = true
+		showExceptions true
+		exceptionFormat "full"
+        showCauses true
+        showStackTraces true
 	}
 	finalizedBy jacocoTestReport
 }
