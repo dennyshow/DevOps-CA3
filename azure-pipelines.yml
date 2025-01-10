@@ -6,6 +6,8 @@ pool:
 
 variables:
   javaVersion: '17'
+  CHROME_DRIVER_URL: 'https://chromedriver.storage.googleapis.com/131.0.6778.205/chromedriver_win32.zip'
+  CHROME_DRIVER_PATH: 'chromedriver_win32'
 
 stages:
 - stage: Build
@@ -130,113 +132,54 @@ stages:
         failOnCVSS: '7'
         nvdApiKey: '2c3d82d7-c688-49e1-970b-254e2295ab36'
 
-- stage: Deploy
+# Test Stage
+- stage: Test
+  displayName: 'Test Stage'
+  dependsOn: Build
   jobs:
-  - deployment: DeployJob
+  - job: RunSeleniumTests
+    displayName: 'Run Selenium Tests'
     pool:
-      vmImage: 'ubuntu-latest'
-    environment: 'Test'
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - task: JavaToolInstaller@0
-            inputs:
-              versionSpec: '$(javaVersion)'
-              jdkArchitectureOption: 'x64'
-              jdkSourceOption: 'PreInstalled'
-          
-          # Download application
-          - task: DownloadBuildArtifacts@0
-            inputs:
-              buildType: 'current'
-              downloadType: 'single'
-              artifactName: 'build-outputs'
-              downloadPath: '$(System.ArtifactsDirectory)'
-          
-          # Setup and start service
-          - script: |
-              JAR_FILE="$(System.ArtifactsDirectory) -name *SNAPSHOT.jar"
-              if [ -z "$JAR_FILE" ]; then
-                echo "JAR file not found at: $JAR_FILE"
-                ls -R $(System.ArtifactsDirectory)
-                exit 1
-              fi
-              echo "Found JAR file: $JAR_FILE"
-              
-              # Find Java 17 path
-              JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))
-              echo "JAVA_HOME: $JAVA_HOME"
-              
-              # Copy JAR to a permanent location
-              sudo mkdir -p /opt/springapp
-              sudo cp "$JAR_FILE" /opt/springapp/app.jar
-              
-              # Create service file
-              sudo tee /etc/systemd/system/springapp.service << EOF
-              [Unit]
-              Description=Spring Boot Application
-              After=network.target
-              
-              [Service]
-              Type=simple
-              User=vsts
-              Environment="JAVA_HOME=$JAVA_HOME"
-              ExecStart=$JAVA_HOME/bin/java -jar -Dserver.address=0.0.0.0 /opt/springapp/app.jar
-              Restart=always
-              WorkingDirectory=/opt/springapp
-              
-              [Install]
-              WantedBy=multi-user.target
-              EOF
-              
-              # Start service
-              sudo systemctl daemon-reload
-              sudo systemctl enable springapp
-              sudo systemctl start springapp
-              
-              # Check status and logs
-              sleep 5
-              sudo systemctl status springapp
-              sudo journalctl -u springapp --no-pager -n 50
-            displayName: 'Deploy Spring Boot app as service'
+      vmImage: 'windows-latest'
+    steps:
+    # Step 1: Checkout the repository
+    - task: Checkout@1
 
-          # Install JMeter
-          - task: JMeterInstaller@0
-            inputs:
-              jmeterVersion: '5.6.3'
-    
-          # Create directories for results
-          - task: Bash@3
-            displayName: 'Create Results Directories'
-            inputs:
-              targetType: 'inline'
-              script: |
-                mkdir -p $(Build.ArtifactStagingDirectory)/jmeter/homepage-dashboard
-                mkdir -p $(Build.ArtifactStagingDirectory)/jmeter/calculate-dashboard
+    # Step 2: Set up JDK
+    - task: UseJavaVersion@1
+      inputs:
+        versionSpec: '11'
+        architecture: 'x64'
 
-          # Run Homepage Test
-          - task: CmdLine@2
-            displayName: 'Run Homepage Test'
-            inputs:
-              script: |
-                ls $(Pipeline.Workspace)/performance-tests/
+    # Step 3: Install Chrome Browser
+    - powershell: |
+        $chromeInstallerPath = "$env:USERPROFILE\chrome_installer.exe"
+        Invoke-WebRequest -Uri "https://dl.google.com/chrome/install/latest/chrome_installer.exe" -OutFile $chromeInstallerPath
+        Start-Process -FilePath $chromeInstallerPath -ArgumentList '/silent', '/install' -NoNewWindow -Wait
+      displayName: 'Install Google Chrome'
 
-                jmeter -n -t $(Pipeline.Workspace)/build-outputs/performance-tests/homepage-test.jmx \
-                      -l $(Build.ArtifactStagingDirectory)/jmeter/homepage-results.jtl \
-                      -e -o $(Build.ArtifactStagingDirectory)/jmeter/homepage-dashboard
+    # Step 4: Download ChromeDriver
+    - powershell: |
+        Invoke-WebRequest -Uri $(CHROME_DRIVER_URL) -OutFile chromedriver.zip
+        Expand-Archive -Path chromedriver.zip -DestinationPath $(CHROME_DRIVER_PATH)
+      displayName: 'Download and Setup ChromeDriver'
 
-          # Run Calculate Test
-          - task: CmdLine@2
-            displayName: 'Run Calculate Test'
-            inputs:
-              script: |
-                jmeter -n -t $(Pipeline.Workspace)/build-outputs/performance-tests/calculate-test.jmx \
-                      -l $(Build.ArtifactStagingDirectory)/jmeter/calculate-results.jtl \
-                      -e -o $(Build.ArtifactStagingDirectory)/jmeter/calculate-dashboard
-    
-          # Publish Results
-          - task: PublishBuildArtifacts@1
-            inputs:
-              pathToPublish: '$(Build.ArtifactStagingDirectory)/jmeter'
-              artifactName: 'jmeter-results'
+    # Step 5: Cache Gradle Dependencies
+    - task: Cache@2
+      inputs:
+        key: 'gradle | "$(Agent.OS)" | gradle-wrapper.properties'
+        path: ~/.gradle/caches
+        restoreKeys: |
+          gradle | "$(Agent.OS)"
+
+    # Step 6: Run Selenium Tests
+    - script: |
+        ./gradlew clean test
+      displayName: 'Run Selenium Tests'
+
+    # Step 7: Publish Test Results
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFiles: '**/build/test-results/**/*.xml'
+        testRunTitle: 'Selenium Test Results'
+
