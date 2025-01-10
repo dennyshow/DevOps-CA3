@@ -146,10 +146,11 @@ stages:
     - task: Checkout@1
 
     # Step 2: Set up JDK
-    - task: UseJavaVersion@1
+    - task: JavaToolInstaller@0
       inputs:
-        versionSpec: '11'
-        architecture: 'x64'
+        versionSpec: '$(javaVersion)'
+        jdkArchitectureOption: 'x64'
+        jdkSourceOption: 'PreInstalled'
 
     # Step 3: Install Chrome Browser
     - powershell: |
