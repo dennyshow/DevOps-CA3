@@ -43,6 +43,7 @@ dependencies {
 test {
 	useJUnitPlatform()
 	testLogging {
+		systemProperty 'chrome.options.args', '--headless --disable-gpu --no-sandbox --disable-dev-shm-usage'
 		events "passed", "skipped", "failed"
 		showStandardStreams = true
 		showExceptions true
