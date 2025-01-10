@@ -6,8 +6,6 @@ pool:
 
 variables:
   javaVersion: '17'
-  CHROME_DRIVER_URL: 'https://chromedriver.storage.googleapis.com/131.0.6778.205/chromedriver_win32.zip'
-  CHROME_DRIVER_PATH: 'chromedriver_win32'
 
 stages:
 - stage: Build
