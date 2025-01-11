@@ -143,7 +143,6 @@ stages:
     # Step 1: Checkout the repository
     - task: Checkout@1
 
-    # Step 2: Run Gradle Tests
     - task: Gradle@3
       inputs:
         workingDirectory: ''
@@ -155,8 +154,7 @@ stages:
         publishJUnitResults: true
         testResultsFiles: '**/TEST-*.xml'
         tasks: 'clean test'
-      displayName: 'Run Tests'
       - script: |
-          export CI=true
-          ./gradlew clean test
+            export CI=true
+            ./gradlew clean test
       displayName: 'Run Tests'
