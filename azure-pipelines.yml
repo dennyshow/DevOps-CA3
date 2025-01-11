@@ -10,7 +10,6 @@ variables:
 stages:
 # Stage 1: Build
 - stage: Build
-  displayName: 'Build Stage'
   jobs:
   - job: BuildJob
     displayName: 'Build Job'
@@ -20,9 +19,8 @@ stages:
         versionSpec: '$(javaVersion)'
         jdkArchitectureOption: 'x64'
         jdkSourceOption: 'PreInstalled'
-
+    
     - task: Gradle@3
-      displayName: 'Gradle Build'
       inputs:
         workingDirectory: ''
         gradleWrapperFile: 'gradlew'
@@ -32,31 +30,57 @@ stages:
         jdkArchitectureOption: 'x64'
         publishJUnitResults: true
         testResultsFiles: '**/TEST-*.xml'
-        tasks: 'clean build'
+        tasks: 'clean build test jacocoTestReport'
 
+    - task: CopyFiles@2
+      inputs:
+        contents: |
+          **/build/**
+          **/build/reports/jacoco/**
+        targetFolder: '$(Build.ArtifactStagingDirectory)'
+    
     - task: PublishBuildArtifacts@1
-      displayName: 'Publish Build Artifacts'
       inputs:
         pathToPublish: '$(Build.ArtifactStagingDirectory)'
         artifactName: 'build-outputs'
 
-# Stage 2: Unit Tests
-- stage: Test
-  displayName: 'Test Stage'
-  dependsOn: Build
+    - task: PublishCodeCoverageResults@2
+      inputs:
+        summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/build/reports/jacoco/test/jacocoTestReport.xml'
+        pathToSources: '$(System.DefaultWorkingDirectory)/src/main/java/'
+        failIfCoverageEmpty: true
+
+# Stage 2: CodeAnalysis
+- stage: CodeAnalysis
   jobs:
-  - job: UnitTests
-    displayName: 'Run Unit Tests'
+  - job: SonarCloudAnalysis
+    displayName: 'SonarCloud Analysis'
     steps:
+    - checkout: self
+      fetchDepth: 0
+
     - task: DownloadBuildArtifacts@0
-      displayName: 'Download Build Artifacts'
       inputs:
         buildType: 'current'
+        downloadType: 'single'
         artifactName: 'build-outputs'
         downloadPath: '$(System.DefaultWorkingDirectory)'
 
+    - task: SonarCloudPrepare@3
+      inputs:
+        SonarCloud: 'SonarConnection'
+        organization: 'x00078774'
+        scannerMode: 'other'
+        extraProperties: |
+          # Additional properties that will be passed to the scanner
+          sonar.projectKey='X00078774_DevOps_CA3'
+          sonar.projectName='DevOps_CA3'
+          sonar.java.binaries=$(System.DefaultWorkingDirectory)/**/build/classes
+          sonar.coverage.jacoco.xmlReportPaths=$(System.DefaultWorkingDirectory)/**/build/reports/jacoco/test/jacocoTestReport.xml
+          sonar.junit.reportPaths=$(System.DefaultWorkingDirectory)/**/build/test-results/test
+          sonar.java.libraries=$(System.DefaultWorkingDirectory)/**/build/libs/*.jar
+
     - task: Gradle@3
-      displayName: 'Run Unit Tests'
       inputs:
         workingDirectory: ''
         gradleWrapperFile: 'gradlew'
@@ -64,65 +88,73 @@ stages:
         javaHomeOption: 'JDKVersion'
         jdkVersionOption: '$(javaVersion)'
         jdkArchitectureOption: 'x64'
-        publishJUnitResults: true
-        testResultsFiles: '**/TEST-*.xml'
-        tasks: 'clean test'
-
-# Stage 3: Code Quality
-- stage: CodeAnalysis
-  displayName: 'Code Quality Stage'
-  dependsOn: Build
-  jobs:
-  - job: CodeAnalysisJob
-    displayName: 'SonarCloud Analysis'
-    steps:
-    - task: DownloadBuildArtifacts@0
-      displayName: 'Download Build Artifacts'
-      inputs:
-        buildType: 'current'
-        artifactName: 'build-outputs'
-        downloadPath: '$(System.DefaultWorkingDirectory)'
-
-    - task: SonarCloudPrepare@3
-      displayName: 'Prepare SonarCloud Analysis'
-      inputs:
-        SonarCloud: 'SonarConnection'
-        organization: 'x00078774'
-        scannerMode: 'CLI'
-        configMode: 'manual'
-        cliProjectKey: 'YourProjectKey'
-        cliProjectName: 'YourProjectName'
-        cliSources: '.'
-
-    - script: |
-        ./gradlew sonarqube \
-          -Dsonar.projectKey=YourProjectKey \
-          -Dsonar.organization=x00078774 \
-          -Dsonar.host.url=https://sonarcloud.io \
-          -Dsonar.login=$(SonarCloudToken)
-      displayName: 'Run SonarCloud Analysis'
+        tasks: 'sonar'
 
     - task: SonarCloudPublish@3
-      displayName: 'Publish SonarCloud Results'
+      inputs:
+        pollingTimeoutSec: '300'
 
-# Stage 4: Deployment
-- stage: Deployment
-  displayName: 'Deployment Stage'
-  dependsOn: Test
-  condition: succeeded()
+# Stage 3: SecurityScanning
+- stage: SecurityScanning
+  displayName: 'Security Scanning'
   jobs:
-  - job: DeployJob
-    displayName: 'Deploy to Environment'
+  - job: SecurityCheck
     steps:
     - task: DownloadBuildArtifacts@0
-      displayName: 'Download Build Artifacts'
       inputs:
         buildType: 'current'
+        downloadType: 'single'
         artifactName: 'build-outputs'
         downloadPath: '$(System.DefaultWorkingDirectory)'
 
-    - script: |
-        echo "Deploying the application..."
-        # Add your deployment script/commands here
-        echo "Deployment completed."
-      displayName: 'Deploy Application'
+    - task: MicrosoftSecurityDevOps@1
+      inputs:
+        categories: 'sources'
+        break: false
+        tools: 'credscan'
+        sourcePath: '$(System.DefaultWorkingDirectory)'
+
+# Stage 4: DependencySecurity
+- stage: DependencySecurity
+  displayName: 'Dependency Security Scanning'
+  jobs:
+  - job: OWASPCheck
+    steps:
+    - task: dependency-check-build-task@6
+      inputs:
+        projectName: '$(Build.Repository.Name)'
+        scanPath: '$(System.DefaultWorkingDirectory)'
+        format: 'HTML'
+        uploadReports: true
+        uploadSARIFReport: true
+        failOnCVSS: '7'
+        nvdApiKey: '2c3d82d7-c688-49e1-970b-254e2295ab36'
+
+# Stage 5: Deployment
+- stage: Deploy
+  jobs:
+  - deployment: DeployJob
+    pool:
+      vmImage: 'ubuntu-latest'
+    environment: 'Test'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: JavaToolInstaller@0
+            inputs:
+              versionSpec: '$(javaVersion)'
+              jdkArchitectureOption: 'x64'
+              jdkSourceOption: 'PreInstalled'
+          
+          - task: DownloadBuildArtifacts@0
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: 'build-outputs'
+              downloadPath: '$(System.ArtifactsDirectory)'
+          
+          - script: |
+              echo "Deploying application..."
+              echo "Deployment completed."
+            displayName: 'Deploy Application'
