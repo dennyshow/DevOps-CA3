@@ -30,13 +30,6 @@ stages:
         testResultsFiles: '**/TEST-*.xml'
         tasks: 'clean build'
 
-    # Archive build outputs
-    - task: CopyFiles@2
-      inputs:
-        contents: |
-          **/build/libs/*.jar
-        targetFolder: '$(Build.ArtifactStagingDirectory)'
-    
     - task: PublishBuildArtifacts@1
       inputs:
         pathToPublish: '$(Build.ArtifactStagingDirectory)'
@@ -51,25 +44,38 @@ stages:
     pool:
       vmImage: 'ubuntu-latest'
     steps:
-    # Step 1: Checkout the repository
     - task: Checkout@1
 
-    # Step 2: Download Build Artifact
     - task: DownloadBuildArtifacts@0
       inputs:
         buildType: 'current'
-        downloadType: 'single'
         artifactName: 'build-outputs'
         downloadPath: '$(System.DefaultWorkingDirectory)'
 
-    # Step 3: Start the Application
+    - task: Bash@3
+      displayName: 'Install Google Chrome'
+      inputs:
+        targetType: 'inline'
+        script: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+
+    - task: Bash@3
+      displayName: 'Install ChromeDriver'
+      inputs:
+        targetType: 'inline'
+        script: |
+          CHROME_DRIVER_VERSION=$(curl -s https://chromedriver.storage.googleapis.com/LATEST_RELEASE)
+          wget -N https://chromedriver.storage.googleapis.com/$CHROME_DRIVER_VERSION/chromedriver_linux64.zip
+          unzip chromedriver_linux64.zip -d /usr/local/bin/
+          chmod +x /usr/local/bin/chromedriver
+
     - script: |
-        java -jar $(System.DefaultWorkingDirectory)/build/libs/*.jar &
-        echo "Waiting for application to start..."
-        sleep 15 # Wait for the application to be fully initialized
+        java -jar $(System.DefaultWorkingDirectory)/build/libs/calculator-web-app-0.0.1-SNAPSHOT.jar &
+        echo "Waiting for the application to start..."
+        sleep 15
       displayName: 'Start Application'
 
-    # Step 4: Run Selenium Tests
     - task: Gradle@3
       inputs:
         workingDirectory: ''
@@ -81,8 +87,3 @@ stages:
         publishJUnitResults: true
         testResultsFiles: '**/TEST-*.xml'
         tasks: 'clean test'
-
-    - script: |
-        export CI=true
-        ./gradlew clean test
-      displayName: 'Run Tests via Script'
