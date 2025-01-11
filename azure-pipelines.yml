@@ -154,7 +154,7 @@ stages:
         publishJUnitResults: true
         testResultsFiles: '**/TEST-*.xml'
         tasks: 'clean test'
-        - script: |
-              export CI=true
-              ./gradlew clean test
+      - script: |
+          export CI=true
+          ./gradlew clean test
       displayName: 'Run Tests'
