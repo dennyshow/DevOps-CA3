@@ -14,11 +14,13 @@ public class CalculatorWorkflowTest {
     @BeforeEach
     public void setup() {
         ChromeOptions options = new ChromeOptions();
-        options.addArguments("--headless"); // Run without GUI
+        options.addArguments("--headless");
         options.addArguments("--disable-gpu");
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
         options.addArguments("--disable-extensions");
+        options.addArguments("--remote-allow-origins=*");
+        options.addArguments("--disable-infobars");
 
         // Initialize the driver before passing it to CalculatorPage
         driver = new ChromeDriver(options);
