@@ -8,17 +8,21 @@ variables:
   javaVersion: '17'
 
 stages:
+# Stage 1: Build
 - stage: Build
+  displayName: 'Build Stage'
   jobs:
   - job: BuildJob
+    displayName: 'Build Job'
     steps:
     - task: JavaToolInstaller@0
       inputs:
         versionSpec: '$(javaVersion)'
         jdkArchitectureOption: 'x64'
         jdkSourceOption: 'PreInstalled'
-    
+
     - task: Gradle@3
+      displayName: 'Gradle Build'
       inputs:
         workingDirectory: ''
         gradleWrapperFile: 'gradlew'
@@ -31,71 +35,111 @@ stages:
         tasks: 'clean build'
 
     - task: PublishBuildArtifacts@1
+      displayName: 'Publish Build Artifacts'
       inputs:
         pathToPublish: '$(Build.ArtifactStagingDirectory)'
         artifactName: 'build-outputs'
 
+# Stage 2: Test
 - stage: Test
   displayName: 'Test Stage'
   dependsOn: Build
   jobs:
-  - job: RunSeleniumTests
-    displayName: 'Run Selenium Tests'
-    pool:
-      vmImage: 'ubuntu-latest'
+  - job: UnitTests
+    displayName: 'Run Unit Tests'
     steps:
-    - task: Checkout@1
-
     - task: DownloadBuildArtifacts@0
+      displayName: 'Download Build Artifacts'
+      inputs:
+        buildType: 'current'
+        artifactName: 'build-outputs'
+        downloadPath: '$(System.DefaultWorkingDirectory)'
+
+    - task: Gradle@3
+      displayName: 'Run Unit Tests'
+      inputs:
+        workingDirectory: ''
+        gradleWrapperFile: 'gradlew'
+        gradleOptions: '-Xmx3072m'
+        javaHomeOption: 'JDKVersion'
+        jdkVersionOption: '$(javaVersion)'
+        jdkArchitectureOption: 'x64'
+        publishJUnitResults: true
+        testResultsFiles: '**/TEST-*.xml'
+        tasks: 'clean test'
+
+# Stage 3: Code Quality
+- stage: CodeAnalysis
+  displayName: 'Code Quality Stage'
+  dependsOn: Build
+  jobs:
+  - job: CodeAnalysisJob
+    displayName: 'SonarCloud Analysis'
+    steps:
+    - task: DownloadBuildArtifacts@0
+      displayName: 'Download Build Artifacts'
+      inputs:
+        buildType: 'current'
+        artifactName: 'build-outputs'
+        downloadPath: '$(System.DefaultWorkingDirectory)'
+
+    - task: SonarCloudPrepare@3
+      displayName: 'Prepare SonarCloud Analysis'
+      inputs:
+        SonarCloud: 'SonarConnection'
+        organization: 'x00078774'
+        scannerMode: 'CLI'
+        configMode: 'manual'
+        cliProjectKey: 'YourProjectKey'
+        cliProjectName: 'YourProjectName'
+        cliSources: '.'
+
+    - script: |
+        ./gradlew sonarqube \
+          -Dsonar.projectKey=YourProjectKey \
+          -Dsonar.organization=x00078774 \
+          -Dsonar.host.url=https://sonarcloud.io \
+          -Dsonar.login=$(SonarCloudToken)
+      displayName: 'Run SonarCloud Analysis'
+
+    - task: SonarCloudPublish@3
+      displayName: 'Publish SonarCloud Results'
+
+# Stage 4: Manual Approval
+- stage: PreDeploymentApproval
+  displayName: 'Pre-Deployment Approval'
+  dependsOn: Test
+  condition: succeeded()
+  jobs:
+  - job: ApprovalJob
+    displayName: 'Approval Job'
+    steps:
+    - task: ManualValidation@0
+      displayName: 'Manual Approval'
+      inputs:
+        instructions: 'Approve the deployment to the next stage.'
+        onTimeout: 'reject'
+
+# Stage 5: Deployment
+- stage: Deployment
+  displayName: 'Deployment Stage'
+  dependsOn: PreDeploymentApproval
+  condition: succeeded()
+  jobs:
+  - job: DeployJob
+    displayName: 'Deploy to Environment'
+    steps:
+    - task: DownloadBuildArtifacts@0
+      displayName: 'Download Build Artifacts'
       inputs:
         buildType: 'current'
         artifactName: 'build-outputs'
         downloadPath: '$(System.DefaultWorkingDirectory)'
 
     - script: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          google-chrome-stable \
-          libasound2 \
-          libatk1.0-0 \
-          libcups2 \
-          libdbus-1-3 \
-          libgconf-2-4 \
-          libgtk-3-0 \
-          libnspr4 \
-          libnss3 \
-          libpango-1.0-0 \
-          libx11-xcb1 \
-          libxcomposite1 \
-          libxcursor1 \
-          libxdamage1 \
-          libxi6 \
-          libxrandr2 \
-          xdg-utils \
-          fonts-liberation
-      displayName: 'Install Chrome and Dependencies'
-
-    - script: |
-        CHROME_DRIVER_VERSION=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+' | head -1)
-        wget -N https://chromedriver.storage.googleapis.com/${CHROME_DRIVER_VERSION}/chromedriver_linux64.zip
-        unzip chromedriver_linux64.zip -d /usr/local/bin/
-        chmod +x /usr/local/bin/chromedriver
-      displayName: 'Install ChromeDriver'
-
-    - script: |
-        java -jar $(System.DefaultWorkingDirectory)/build/libs/*.jar &
-        echo "Waiting for the application to start..."
-        sleep 15
-      displayName: 'Start Application'
-
-    - task: Gradle@3
-      inputs:
-        workingDirectory: ''
-        gradleWrapperFile: 'gradlew'
-        gradleOptions: '-Xmx3072m'
-        javaHomeOption: 'JDKVersion'
-        jdkVersionOption: '17'
-        jdkArchitectureOption: 'x64'
-        publishJUnitResults: true
-        testResultsFiles: '**/TEST-*.xml'
-        tasks: 'clean test'
+        echo "Deploying the application..."
+        # Add your deployment script/commands here
+        # Example:
+        # scp -i your-key.pem $(System.DefaultWorkingDirectory)/build/libs/*.jar user@server:/path/to/deployment
+        echo "Deployment completed."
+      displayName: 'Deploy Application'
