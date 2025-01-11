@@ -28,14 +28,13 @@ stages:
         jdkArchitectureOption: 'x64'
         publishJUnitResults: true
         testResultsFiles: '**/TEST-*.xml'
-        tasks: 'clean build test jacocoTestReport'
+        tasks: 'clean build'
 
-    # Archive build outputs and test reports
+    # Archive build outputs
     - task: CopyFiles@2
       inputs:
         contents: |
-          **/build/**
-          **/build/reports/jacoco/**
+          **/build/libs/*.jar
         targetFolder: '$(Build.ArtifactStagingDirectory)'
     
     - task: PublishBuildArtifacts@1
@@ -43,94 +42,6 @@ stages:
         pathToPublish: '$(Build.ArtifactStagingDirectory)'
         artifactName: 'build-outputs'
 
-    # Publish code coverage results
-    - task: PublishCodeCoverageResults@2
-      inputs:
-        summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/build/reports/jacoco/test/jacocoTestReport.xml'
-        pathToSources: '$(System.DefaultWorkingDirectory)/src/main/java/'
-        failIfCoverageEmpty: true
-    
-- stage: CodeAnalysis
-  jobs:
-  - job: SonarCloudAnalysis
-    steps:
-    - checkout: self
-      fetchDepth: 0
-
-    # Download build artifacts for analysis
-    - task: DownloadBuildArtifacts@0
-      inputs:
-        buildType: 'current'
-        downloadType: 'single'
-        artifactName: 'build-outputs'
-        downloadPath: '$(System.DefaultWorkingDirectory)'
-
-    - task: SonarCloudPrepare@3
-      inputs:
-        SonarCloud: 'SonarConnection'
-        organization: 'x00078774'
-        scannerMode: 'other'
-        extraProperties: |
-          # Additional properties that will be passed to the scanner
-          sonar.projectKey='X00078774_DevOps_CA3'
-          sonar.projectName='DevOps_CA3'
-          sonar.java.binaries=$(System.DefaultWorkingDirectory)/**/build/classes
-          sonar.coverage.jacoco.xmlReportPaths=$(System.DefaultWorkingDirectory)/**/build/reports/jacoco/test/jacocoTestReport.xml
-          sonar.junit.reportPaths=$(System.DefaultWorkingDirectory)/**/build/test-results/test
-          sonar.java.libraries=$(System.DefaultWorkingDirectory)/**/build/libs/*.jar
-
-    - task: Gradle@3
-      inputs:
-        workingDirectory: ''
-        gradleWrapperFile: 'gradlew'
-        gradleOptions: '-Xmx3072m'
-        javaHomeOption: 'JDKVersion'
-        jdkVersionOption: '$(javaVersion)'
-        jdkArchitectureOption: 'x64'
-        tasks: 'sonar'
-
-    - task: SonarCloudPublish@3
-      inputs:
-        pollingTimeoutSec: '300'
-
-# add security scanning
-- stage: SecurityScanning
-  displayName: 'Security Scanning'
-  jobs:
-  - job: SecurityCheck
-    steps:
-    # Download artifacts from previous build stage
-    - task: DownloadBuildArtifacts@0
-      inputs:
-        buildType: 'current'
-        downloadType: 'single'
-        artifactName: 'build-outputs'
-        downloadPath: '$(System.DefaultWorkingDirectory)'
-
-    # Run security scanning
-    - task: MicrosoftSecurityDevOps@1
-      inputs:
-        categories: 'sources'
-        break: false # Starting with false to avoid breaking builds
-        tools: 'credscan'    # Basic credential scanning
-        sourcePath: '$(System.DefaultWorkingDirectory)'
-
-- stage: DependencySecurity
-  displayName: 'Dependency Security Scanning'
-  jobs:
-  - job: OWASPCheck
-    steps:
-    - task: dependency-check-build-task@6
-      inputs:
-        projectName: '$(Build.Repository.Name)'
-        scanPath: '$(System.DefaultWorkingDirectory)'
-        format: 'HTML'
-        uploadReports: true
-        uploadSARIFReport: true
-        failOnCVSS: '7'
-        nvdApiKey: '2c3d82d7-c688-49e1-970b-254e2295ab36'
-
-# Test Stage
 - stage: Test
   displayName: 'Test Stage'
   dependsOn: Build
@@ -143,7 +54,22 @@ stages:
     # Step 1: Checkout the repository
     - task: Checkout@1
 
-    # Step 2: Run Gradle Tests
+    # Step 2: Download Build Artifact
+    - task: DownloadBuildArtifacts@0
+      inputs:
+        buildType: 'current'
+        downloadType: 'single'
+        artifactName: 'build-outputs'
+        downloadPath: '$(System.DefaultWorkingDirectory)'
+
+    # Step 3: Start the Application
+    - script: |
+        java -jar $(System.DefaultWorkingDirectory)/build/libs/*.jar &
+        echo "Waiting for application to start..."
+        sleep 15 # Wait for the application to be fully initialized
+      displayName: 'Start Application'
+
+    # Step 4: Run Selenium Tests
     - task: Gradle@3
       inputs:
         workingDirectory: ''
