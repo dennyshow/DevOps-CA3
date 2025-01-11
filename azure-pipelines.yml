@@ -111,8 +111,9 @@ stages:
   dependsOn: Test
   condition: succeeded()
   jobs:
-  - job: ApprovalJob
-    displayName: 'Approval Job'
+  - job: ManualApproval
+    displayName: 'Manual Approval Job'
+    pool: server # Change to server job
     steps:
     - task: ManualValidation@0
       displayName: 'Manual Approval'
@@ -139,7 +140,5 @@ stages:
     - script: |
         echo "Deploying the application..."
         # Add your deployment script/commands here
-        # Example:
-        # scp -i your-key.pem $(System.DefaultWorkingDirectory)/build/libs/*.jar user@server:/path/to/deployment
         echo "Deployment completed."
       displayName: 'Deploy Application'
