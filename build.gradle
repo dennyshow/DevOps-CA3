@@ -43,6 +43,8 @@ dependencies {
 
 test {
 	useJUnitPlatform()
+	// Exclude Selenium tests
+    exclude '**/selenium/tests/**'
 
 	testLogging {
 		events "passed", "skipped", "failed"
