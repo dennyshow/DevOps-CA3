@@ -40,7 +40,7 @@ stages:
         pathToPublish: '$(Build.ArtifactStagingDirectory)'
         artifactName: 'build-outputs'
 
-# Stage 2: Test
+# Stage 2: Unit Tests
 - stage: Test
   displayName: 'Test Stage'
   dependsOn: Build
@@ -105,26 +105,10 @@ stages:
     - task: SonarCloudPublish@3
       displayName: 'Publish SonarCloud Results'
 
-# Stage 4: Manual Approval
-- stage: PreDeploymentApproval
-  displayName: 'Pre-Deployment Approval'
-  dependsOn: Test
-  condition: succeeded()
-  jobs:
-  - job: ManualApproval
-    displayName: 'Manual Approval Job'
-    pool: server # Change to server job
-    steps:
-    - task: ManualValidation@0
-      displayName: 'Manual Approval'
-      inputs:
-        instructions: 'Approve the deployment to the next stage.'
-        onTimeout: 'reject'
-
-# Stage 5: Deployment
+# Stage 4: Deployment
 - stage: Deployment
   displayName: 'Deployment Stage'
-  dependsOn: PreDeploymentApproval
+  dependsOn: Test
   condition: succeeded()
   jobs:
   - job: DeployJob
