@@ -45,6 +45,7 @@ test {
 	useJUnitPlatform()
 	// Exclude Selenium tests
     exclude '**/selenium/tests/**'
+	exclude '**/HomePageTest.class'
 
 	testLogging {
 		events "passed", "skipped", "failed"

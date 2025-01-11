@@ -16,7 +16,7 @@ public class HomePageTest {
     @BeforeEach
     public void setup(){
         // 1. Start the session
-        // driver = new ChromeDriver(); //remove chrome driver for pipeline
+        driver = new ChromeDriver();
     }
 
     @Test
